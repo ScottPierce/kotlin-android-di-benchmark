@@ -3,7 +3,7 @@ task clean(type: Delete) {
 }
 
 ext {
-    kotlin_version = '1.0.4'
+    kotlin_version = '1.1-M02'
     android_support_version = '24.2.1'
 }
 
@@ -20,7 +20,7 @@ ext.deps = [
         kotlin_stdlib: "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version",
 
         // Android
-        android_build: 'com.android.tools.build:gradle:2.2.1',
+        android_build: 'com.android.tools.build:gradle:2.2.2',
         android_appcompat: "com.android.support:appcompat-v7:$android_support_version",
 
         // Third Party
