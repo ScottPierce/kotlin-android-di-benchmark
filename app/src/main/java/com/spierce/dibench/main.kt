@@ -31,5 +31,9 @@ class MainActivity : AppCompatActivity() {
         findViewById(R.id.kodeinBenchmark).setOnClickListener {
             startActivity(Intent(this@MainActivity, KodeinBenchmarkActivity::class.java))
         }
+
+        findViewById(R.id.kinjectBenchmark).setOnClickListener {
+            startActivity(Intent(this@MainActivity, KinjectBenchmarkActivity::class.java))
+        }
     }
 }

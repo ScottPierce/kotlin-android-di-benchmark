@@ -10,7 +10,7 @@
 		android:theme="@style/AppTheme">
 
 		<activity android:name=".MainActivity"
-			android:label="Benchmark Home">
+			android:label="Kotlin DI Benchmarks">
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN" />
 				<category android:name="android.intent.category.LAUNCHER" />
@@ -21,6 +21,8 @@
 			android:label="Dagger 2 Benchmark" />
 		<activity android:name=".KodeinBenchmarkActivity"
 			android:label="Kodein Benchmark" />
+		<activity android:name=".KinjectBenchmarkActivity"
+			android:label="Kinject Benchmark" />
 	</application>
 
 </manifest>

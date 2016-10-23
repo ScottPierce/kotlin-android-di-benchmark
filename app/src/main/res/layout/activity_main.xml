@@ -20,4 +20,11 @@
 		android:text="Run Kodein Benchmark"
 		/>
 
+	<Button android:id="@+id/kinjectBenchmark"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="Run Kinject Benchmark"
+		android:layout_gravity="bottom"
+		/>
+
 </LinearLayout>

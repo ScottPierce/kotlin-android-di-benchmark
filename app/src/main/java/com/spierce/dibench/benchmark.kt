@@ -33,10 +33,16 @@ import com.github.salomonbrys.kodein.singleton
 import dagger.Component
 import dagger.Module
 import dagger.Provides
+import kinject.ObjectGraph
+import kinject.objectGraph
 import javax.inject.Inject
 import javax.inject.Singleton
 
 abstract class BenchmarkActivity : AppCompatActivity() {
+    companion object {
+        val TEST_TIMES = 100
+    }
+
     private var nanosToCreateInjector = 0L
     private var nanosToInject = 0L
 
@@ -45,9 +51,13 @@ abstract class BenchmarkActivity : AppCompatActivity() {
         setContentView(R.layout.activity_benchmark)
 
         // Create Injector
-        val start = System.nanoTime()
-        createInjector()
-        nanosToCreateInjector = System.nanoTime() - start
+        nanosToCreateInjector = 0
+        for (i in 0..TEST_TIMES) {
+            val start = System.nanoTime()
+            createInjector()
+            nanosToCreateInjector += System.nanoTime() - start
+        }
+        nanosToCreateInjector /= TEST_TIMES
 
         benchmarkInject()
         showData()
@@ -64,12 +74,20 @@ abstract class BenchmarkActivity : AppCompatActivity() {
         findViewById(R.id.kodeinBenchmark).setOnClickListener {
             startActivity(Intent(this@BenchmarkActivity, KodeinBenchmarkActivity::class.java))
         }
+
+        findViewById(R.id.kinjectBenchmark).setOnClickListener {
+            startActivity(Intent(this@BenchmarkActivity, KinjectBenchmarkActivity::class.java))
+        }
     }
 
     fun benchmarkInject() {
-        val start = System.nanoTime()
-        inject()
-        nanosToInject = System.nanoTime() - start
+        nanosToInject = 0
+        for (i in 0..TEST_TIMES) {
+            val start = System.nanoTime()
+            inject()
+            nanosToInject += System.nanoTime() - start
+        }
+        nanosToInject /= TEST_TIMES
     }
 
     fun showData() {
@@ -197,7 +215,73 @@ class KodeinBenchmarkActivity : BenchmarkActivity() {
     }
 }
 
+class KinjectBenchmarkActivity : BenchmarkActivity() {
+    lateinit var dep1: AccessibilityManager
+    lateinit var dep2: AccountManager
+    lateinit var dep3: ActivityManager
+    lateinit var dep4: AlarmManager
+    lateinit var dep5: AudioManager
+    lateinit var dep6: ClipboardManager
+    lateinit var dep7: ConnectivityManager
+    lateinit var dep8: DevicePolicyManager
+    lateinit var dep9: DownloadManager
+    lateinit var dep10: DropBoxManager
+    lateinit var dep11: InputMethodManager
+    lateinit var dep12: KeyguardManager
+    lateinit var dep13: LayoutInflater
+    lateinit var dep14: LocationManager
+    lateinit var dep15: NfcManager
+    lateinit var dep16: NotificationManager
+    lateinit var dep17: PowerManager
+    lateinit var dep18: SearchManager
+    lateinit var dep19: SensorManager
+    lateinit var dep20: StorageManager
+    lateinit var dep21: TelephonyManager
+    lateinit var dep22: TextServicesManager
+    lateinit var dep23: UiModeManager
+    lateinit var dep24: UsbManager
+    lateinit var dep25: Vibrator
+    lateinit var dep27: WifiP2pManager
+    lateinit var dep28: WifiManager
+    lateinit var dep29: WindowManager
 
+    lateinit var objectGraph: ObjectGraph
+
+    override fun createInjector() {
+        objectGraph = createObjectGraph()
+    }
+
+    override fun inject() {
+        dep1 = objectGraph.instance()
+        dep2 = objectGraph.instance()
+        dep3 = objectGraph.instance()
+        dep4 = objectGraph.instance()
+        dep5 = objectGraph.instance()
+        dep6 = objectGraph.instance()
+        dep7 = objectGraph.instance()
+        dep8 = objectGraph.instance()
+        dep9 = objectGraph.instance()
+        dep10 = objectGraph.instance()
+        dep11 = objectGraph.instance()
+        dep12 = objectGraph.instance()
+        dep13 = objectGraph.instance()
+        dep14 = objectGraph.instance()
+        dep15 = objectGraph.instance()
+        dep16 = objectGraph.instance()
+        dep17 = objectGraph.instance()
+        dep18 = objectGraph.instance()
+        dep19 = objectGraph.instance()
+        dep20 = objectGraph.instance()
+        dep21 = objectGraph.instance()
+        dep22 = objectGraph.instance()
+        dep23 = objectGraph.instance()
+        dep24 = objectGraph.instance()
+        dep25 = objectGraph.instance()
+        dep27 = objectGraph.instance()
+        dep28 = objectGraph.instance()
+        dep29 = objectGraph.instance()
+    }
+}
 
 object InjectedItems {
     val ACCESSIBILITY_SERVICE = DiBenchmarkApplication.instance.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
@@ -261,6 +345,37 @@ fun createKodein() = Kodein {
         bind() from singleton { InjectedItems.WIFI_SERVICE }
         bind() from singleton { InjectedItems.WINDOW_SERVICE }
     })
+}
+
+fun createObjectGraph() = objectGraph {
+    singleton { InjectedItems.ACCESSIBILITY_SERVICE }
+    singleton { InjectedItems.ACCOUNT_SERVICE }
+    singleton { InjectedItems.ACTIVITY_SERVICE }
+    singleton { InjectedItems.ALARM_SERVICE }
+    singleton { InjectedItems.AUDIO_SERVICE }
+    singleton { InjectedItems.CLIPBOARD_SERVICE }
+    singleton { InjectedItems.CONNECTIVITY_SERVICE }
+    singleton { InjectedItems.DEVICE_POLICY_SERVICE }
+    singleton { InjectedItems.DOWNLOAD_SERVICE }
+    singleton { InjectedItems.DROPBOX_SERVICE }
+    singleton { InjectedItems.INPUT_METHOD_SERVICE }
+    singleton { InjectedItems.KEYGUARD_SERVICE }
+    singleton { InjectedItems.LAYOUT_INFLATER_SERVICE }
+    singleton { InjectedItems.LOCATION_SERVICE }
+    singleton { InjectedItems.NFC_SERVICE  }
+    singleton { InjectedItems.NOTIFICATION_SERVICE }
+    singleton { InjectedItems.POWER_SERVICE }
+    singleton { InjectedItems.SEARCH_SERVICE  }
+    singleton { InjectedItems.SENSOR_SERVICE  }
+    singleton { InjectedItems.STORAGE_SERVICE }
+    singleton { InjectedItems.TELEPHONY_SERVICE }
+    singleton { InjectedItems.TEXT_SERVICES_MANAGER_SERVICE }
+    singleton { InjectedItems.UI_MODE_SERVICE  }
+    singleton { InjectedItems.USB_SERVICE }
+    singleton { InjectedItems.VIBRATOR_SERVICE }
+    singleton { InjectedItems.WIFI_P2P_SERVICE }
+    singleton { InjectedItems.WIFI_SERVICE }
+    singleton { InjectedItems.WINDOW_SERVICE }
 }
 
 @Singleton
