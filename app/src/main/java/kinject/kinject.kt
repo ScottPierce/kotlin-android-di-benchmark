@@ -1,5 +1,6 @@
 package kinject
 
+import java.lang.RuntimeException
 import java.util.*
 
 inline fun objectGraph(create: ObjectGraph.Builder.() -> Unit): ObjectGraph {
@@ -8,7 +9,7 @@ inline fun objectGraph(create: ObjectGraph.Builder.() -> Unit): ObjectGraph {
     return builder.build()
 }
 
-class ObjectGraph private constructor(val bindingsHashTable: BindingsHashTable) {
+class ObjectGraph private constructor(val bindingsHashTable: BindingsHashTable, val bindings: List<Binding>) {
     inline fun <reified T : Any> instance(tag: String? = null): T {
         return instance(T::class.java, tag)
     }
@@ -23,39 +24,64 @@ class ObjectGraph private constructor(val bindingsHashTable: BindingsHashTable) 
     }
 
     class Builder {
+        private var extendsBindingIndex = 0
         private val bindings: MutableList<Binding> = ArrayList()
 
         infix fun extends(objectGraph: ObjectGraph) {
-            objectGraph.bindingsHashTable.bindings
-                    .asSequence()
-                    .filterNotNull()
-                    .forEach { bindings += it }
+            bindings.addAll(extendsBindingIndex, objectGraph.bindings)
+            extendsBindingIndex += objectGraph.bindings.size
         }
 
-        fun <T> singleton(clazz: Class<T>, tag: String? = null, provider: () -> T) {
-            bindings += SingletonBinding(clazz.name, tag, provider, null)
+        fun <T> singleton(clazz: Class<T>, tag: String? = null, isOverride: Boolean = false,
+                          provider: () -> T) {
+            bindings += SingletonLazyBinding(clazz.name, tag, isOverride, provider)
         }
 
-        inline fun <reified T : Any> singleton(tag: String? = null, noinline provider: () -> T) {
-            singleton(T::class.java, tag, provider)
+        inline fun <reified T : Any> singleton(tag: String? = null, isOverride: Boolean = false,
+                                               noinline provider: () -> T) {
+            singleton(T::class.java, tag, isOverride, provider)
         }
 
-        fun <T : Any> singleton(instance: T, tag: String? = null, bindType: Class<*> = instance.javaClass) {
-            bindings += SingletonBinding(bindType.name, tag, null, instance)
+        fun <T : Any> singleton(instance: T, tag: String? = null, isOverride: Boolean = false,
+                                bindType: Class<*> = instance.javaClass) {
+            bindings += SingletonInstanceBinding(bindType.name, tag, isOverride, instance)
+        }
+
+        fun <T : Any> factory(clazz: Class<T>, tag: String? = null, isOverride: Boolean = false, provider: () -> T) {
+            bindings += FactoryBinding(clazz.name, tag, isOverride, provider)
+        }
+
+        inline fun <reified T : Any> factory(tag: String? = null, isOverride: Boolean = false,
+                                             noinline provider: () -> T) {
+            factory(T::class.java, tag, isOverride, provider)
         }
 
         fun build(): ObjectGraph {
-            return ObjectGraph(BindingsHashTable(bindings))
+            val bindingsHashTable = BindingsHashTable(bindings.size)
+
+            var overrideBindings: MutableList<Binding>? = null
+
+            for (binding in bindings) {
+                if (binding.isOverride) {
+                    if (overrideBindings == null) overrideBindings = ArrayList(4)
+                    overrideBindings.add(binding)
+                } else {
+                    bindingsHashTable.put(binding)
+                }
+            }
+
+            if (overrideBindings != null) {
+                for (binding in overrideBindings) {
+                    bindingsHashTable.put(binding, true)
+                }
+            }
+
+            return ObjectGraph(bindingsHashTable, bindings)
         }
     }
 }
 
 internal interface Binding {
-    val className: String
-    val tag: String?
-
-    fun get(): Any
-
     companion object {
         fun hashCode(className: String, tag: String?): Int {
             var result = className.hashCode()
@@ -63,16 +89,22 @@ internal interface Binding {
             return result
         }
     }
+
+    val className: String
+    val tag: String?
+    val isOverride: Boolean
+
+    fun get(): Any
 }
 
-/**
- * provider or instance should be given, not both.
- */
-internal class SingletonBinding<T>(
+internal class SingletonLazyBinding<T>(
         override val className: String,
         override val tag: String?,
-        var provider: (() -> T)?,
-        var instance: T?) : Binding {
+        override val isOverride: Boolean,
+        _provider: () -> T) : Binding {
+
+    private var instance: T? = null
+    private var provider: (() -> T)? = _provider
 
     override fun get(): Any {
         if (instance == null) {
@@ -85,6 +117,28 @@ internal class SingletonBinding<T>(
         }
 
         return instance!!
+    }
+}
+
+internal class SingletonInstanceBinding<out T : Any>(
+        override val className: String,
+        override val tag: String?,
+        override val isOverride: Boolean,
+        val instance: T) : Binding {
+
+    override fun get(): Any {
+        return instance
+    }
+}
+
+class FactoryBinding<T : Any>(
+        override val className: String,
+        override val tag: String?,
+        override val isOverride: Boolean,
+        var provider: (() -> T)) : Binding {
+
+    override fun get(): Any {
+        return provider()
     }
 }
 
@@ -105,22 +159,17 @@ private fun Int.isPrime(): Boolean {
     return true
 }
 
-internal class BindingsHashTable(_bindings: List<Binding>) {
+internal class BindingsHashTable(size: Int) {
     val bindings: Array<Binding?>
     private val tableSize: Int
 
     init {
-        val size = _bindings.size
         // Table size must be at least 30% larger than the storage size and also a prime number
         var tableSize = (size + (size * .30) + 1).toInt()
         while (!tableSize.isPrime()) tableSize++
         this.tableSize = tableSize
 
         bindings = arrayOfNulls<Binding>(tableSize)
-
-        for (binding in _bindings) {
-            put(binding)
-        }
     }
 
     private fun lookup(className: String, tag: String?): Int {
@@ -141,9 +190,14 @@ internal class BindingsHashTable(_bindings: List<Binding>) {
         return bindings[index]
     }
 
-    fun put(binding: Binding) {
+    fun put(binding: Binding, overridePreviousBindings: Boolean = false) {
         val i = lookup(binding.className, binding.tag)
-        bindings[i] = binding
+        if (bindings[i] == null || overridePreviousBindings) {
+            bindings[i] = binding
+        } else {
+            throw java.lang.IllegalStateException("Multiple bindings for class '${binding.className}'"
+                    + if (binding.tag == null) "" else " with tag '${binding.tag}'")
+        }
     }
 }
 
