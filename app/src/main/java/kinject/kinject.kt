@@ -1,6 +1,6 @@
 package kinject
 
-import java.lang.RuntimeException
+import java.io.Serializable
 import java.util.*
 
 inline fun objectGraph(create: ObjectGraph.Builder.() -> Unit): ObjectGraph {
@@ -10,17 +10,25 @@ inline fun objectGraph(create: ObjectGraph.Builder.() -> Unit): ObjectGraph {
 }
 
 class ObjectGraph private constructor(val bindingsHashTable: BindingsHashTable, val bindings: List<Binding>) {
-    inline fun <reified T : Any> instance(tag: String? = null): T {
-        return instance(T::class.java, tag)
+    inline fun <reified T : Any> get(tag: String? = null): T {
+        return get(T::class.java, tag)
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun <T> instance(clazz: Class<T>, tag: String? = null): T {
+    fun <T> get(clazz: Class<T>, tag: String? = null): T {
         val className = clazz.name
         val binding = bindingsHashTable.get(className, tag) ?:
                 throw BindingNotFoundException("No binding found for class '${clazz.name}'"
                         + if (tag == null) "" else " with tag '$tag'")
-        return binding.get() as T
+        return binding.get(this) as T
+    }
+
+    inline fun <reified T : Any> lazy(tag: String? = null): Lazy<T> {
+        return lazy(T::class.java, tag)
+    }
+
+    fun <T : Any> lazy(clazz: Class<T>, tag: String? = null): Lazy<T> {
+        return LazyGet(this, clazz, tag)
     }
 
     class Builder {
@@ -33,12 +41,12 @@ class ObjectGraph private constructor(val bindingsHashTable: BindingsHashTable, 
         }
 
         fun <T> singleton(clazz: Class<T>, tag: String? = null, isOverride: Boolean = false,
-                          provider: () -> T) {
+                          provider: ObjectGraph.() -> T) {
             bindings += SingletonLazyBinding(clazz.name, tag, isOverride, provider)
         }
 
         inline fun <reified T : Any> singleton(tag: String? = null, isOverride: Boolean = false,
-                                               noinline provider: () -> T) {
+                                               noinline provider: ObjectGraph.() -> T) {
             singleton(T::class.java, tag, isOverride, provider)
         }
 
@@ -47,12 +55,13 @@ class ObjectGraph private constructor(val bindingsHashTable: BindingsHashTable, 
             bindings += SingletonInstanceBinding(bindType.name, tag, isOverride, instance)
         }
 
-        fun <T : Any> factory(clazz: Class<T>, tag: String? = null, isOverride: Boolean = false, provider: () -> T) {
+        fun <T : Any> factory(clazz: Class<T>, tag: String? = null, isOverride: Boolean = false,
+                              provider: ObjectGraph.() -> T) {
             bindings += FactoryBinding(clazz.name, tag, isOverride, provider)
         }
 
         inline fun <reified T : Any> factory(tag: String? = null, isOverride: Boolean = false,
-                                             noinline provider: () -> T) {
+                                             noinline provider: ObjectGraph.() -> T) {
             factory(T::class.java, tag, isOverride, provider)
         }
 
@@ -79,6 +88,34 @@ class ObjectGraph private constructor(val bindingsHashTable: BindingsHashTable, 
             return ObjectGraph(bindingsHashTable, bindings)
         }
     }
+
+    private class LazyGet<out T : Any>(
+            objectGraph: ObjectGraph,
+            clazz: Class<T>,
+            private var tag: String?) : Lazy<T>, Serializable {
+
+        private object UNINITIALIZED_VALUE
+
+        private var objectGraph: ObjectGraph? = objectGraph
+        private var clazz: Class<T>? = clazz
+        private var _value: Any? = UNINITIALIZED_VALUE
+
+        override val value: T
+            get() {
+                if (_value === UNINITIALIZED_VALUE) {
+                    _value = objectGraph!!.get(clazz!!, tag)
+                    objectGraph = null
+                    clazz = null
+                    tag = null
+                }
+                @Suppress("UNCHECKED_CAST")
+                return _value as T
+            }
+
+        override fun isInitialized(): Boolean = _value !== UNINITIALIZED_VALUE
+
+        override fun toString(): String = if (isInitialized()) value.toString() else "Lazy value not initialized yet."
+    }
 }
 
 internal interface Binding {
@@ -94,25 +131,38 @@ internal interface Binding {
     val tag: String?
     val isOverride: Boolean
 
-    fun get(): Any
+    fun get(objectGraph: ObjectGraph): Any
 }
 
 internal class SingletonLazyBinding<T>(
         override val className: String,
         override val tag: String?,
         override val isOverride: Boolean,
-        _provider: () -> T) : Binding {
+        _provider: ObjectGraph.() -> T) : Binding {
 
     private var instance: T? = null
-    private var provider: (() -> T)? = _provider
+    private var provider: (ObjectGraph.() -> T)? = _provider
+    private var isCreating = false
 
-    override fun get(): Any {
+    override fun get(objectGraph: ObjectGraph): Any {
         if (instance == null) {
             synchronized(this) {
-                if (provider != null) {
-                    instance = provider!!()
+                val _provider = provider
+                if (_provider != null) {
+                    if (isCreating) {
+                        throw CyclicDependencyException("A cyclic dependency was found for '$className'" +
+                                "${if (tag == null) "" else " with tag '$tag'"}.\n" +
+                                "Such a relationship is not recommended, but ObjectGraph.lazy() can be used as a " +
+                                "work around if necessary.")
+                    }
+                    isCreating = true
+
+                    instance = objectGraph._provider()
                     provider = null
+
+                    isCreating = false
                 }
+
             }
         }
 
@@ -126,7 +176,7 @@ internal class SingletonInstanceBinding<out T : Any>(
         override val isOverride: Boolean,
         val instance: T) : Binding {
 
-    override fun get(): Any {
+    override fun get(objectGraph: ObjectGraph): Any {
         return instance
     }
 }
@@ -135,10 +185,10 @@ class FactoryBinding<T : Any>(
         override val className: String,
         override val tag: String?,
         override val isOverride: Boolean,
-        var provider: (() -> T)) : Binding {
+        var provider: (ObjectGraph.() -> T)) : Binding {
 
-    override fun get(): Any {
-        return provider()
+    override fun get(objectGraph: ObjectGraph): Any {
+        return objectGraph.provider()
     }
 }
 
@@ -195,10 +245,11 @@ internal class BindingsHashTable(size: Int) {
         if (bindings[i] == null || overridePreviousBindings) {
             bindings[i] = binding
         } else {
-            throw java.lang.IllegalStateException("Multiple bindings for class '${binding.className}'"
+            throw IllegalStateException("Multiple bindings for class '${binding.className}'"
                     + if (binding.tag == null) "" else " with tag '${binding.tag}'")
         }
     }
 }
 
 class BindingNotFoundException(message: String) : RuntimeException(message)
+class CyclicDependencyException(message: String) : RuntimeException(message)
