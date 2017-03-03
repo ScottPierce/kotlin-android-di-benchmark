@@ -21,6 +21,8 @@
 			android:label="Dagger 2 Benchmark" />
 		<activity android:name=".KodeinBenchmarkActivity"
 			android:label="Kodein Benchmark" />
+		<activity android:name=".KodeinErasedBenchmarkActivity"
+			android:label="Kodein Erased Benchmark" />
 		<activity android:name=".KinjectBenchmarkActivity"
 			android:label="Kinject Benchmark" />
 	</application>

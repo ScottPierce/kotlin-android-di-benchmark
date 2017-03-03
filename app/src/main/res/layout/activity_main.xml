@@ -20,6 +20,12 @@
 		android:text="Run Kodein Benchmark"
 		/>
 
+	<Button android:id="@+id/kodeinErasedBenchmark"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="Run Kodein Erased Benchmark"
+		/>
+
 	<Button android:id="@+id/kinjectBenchmark"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"

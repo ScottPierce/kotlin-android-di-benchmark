@@ -28,8 +28,10 @@ import android.view.inputmethod.InputMethodManager
 import android.view.textservice.TextServicesManager
 import android.widget.TextView
 import com.github.salomonbrys.kodein.Kodein
-import com.github.salomonbrys.kodein.instance
 import com.github.salomonbrys.kodein.singleton
+import com.github.salomonbrys.kodein.instance
+import com.github.salomonbrys.kodein.erasedInstance
+import com.github.salomonbrys.kodein.bind
 import dagger.Component
 import dagger.Module
 import dagger.Provides
@@ -73,6 +75,10 @@ abstract class BenchmarkActivity : AppCompatActivity() {
 
         findViewById(R.id.kodeinBenchmark).setOnClickListener {
             startActivity(Intent(this@BenchmarkActivity, KodeinBenchmarkActivity::class.java))
+        }
+
+        findViewById(R.id.kodeinErasedBenchmark).setOnClickListener {
+            startActivity(Intent(this@BenchmarkActivity, KodeinErasedBenchmarkActivity::class.java))
         }
 
         findViewById(R.id.kinjectBenchmark).setOnClickListener {
@@ -186,6 +192,7 @@ class KodeinBenchmarkActivity : BenchmarkActivity() {
     override fun inject() {
         dep1 = kodein.instance()
         dep2 = kodein.instance()
+        dep2 = kodein.instance()
         dep3 = kodein.instance()
         dep4 = kodein.instance()
         dep5 = kodein.instance()
@@ -212,6 +219,75 @@ class KodeinBenchmarkActivity : BenchmarkActivity() {
         dep27 = kodein.instance()
         dep28 = kodein.instance()
         dep29 = kodein.instance()
+    }
+}
+
+class KodeinErasedBenchmarkActivity : BenchmarkActivity() {
+    lateinit var dep1: AccessibilityManager
+    lateinit var dep2: AccountManager
+    lateinit var dep3: ActivityManager
+    lateinit var dep4: AlarmManager
+    lateinit var dep5: AudioManager
+    lateinit var dep6: ClipboardManager
+    lateinit var dep7: ConnectivityManager
+    lateinit var dep8: DevicePolicyManager
+    lateinit var dep9: DownloadManager
+    lateinit var dep10: DropBoxManager
+    lateinit var dep11: InputMethodManager
+    lateinit var dep12: KeyguardManager
+    lateinit var dep13: LayoutInflater
+    lateinit var dep14: LocationManager
+    lateinit var dep15: NfcManager
+    lateinit var dep16: NotificationManager
+    lateinit var dep17: PowerManager
+    lateinit var dep18: SearchManager
+    lateinit var dep19: SensorManager
+    lateinit var dep20: StorageManager
+    lateinit var dep21: TelephonyManager
+    lateinit var dep22: TextServicesManager
+    lateinit var dep23: UiModeManager
+    lateinit var dep24: UsbManager
+    lateinit var dep25: Vibrator
+    lateinit var dep27: WifiP2pManager
+    lateinit var dep28: WifiManager
+    lateinit var dep29: WindowManager
+
+    lateinit var kodein: Kodein
+
+    override fun createInjector() {
+        kodein = createKodein()
+    }
+
+    override fun inject() {
+        dep1 = kodein.erasedInstance()
+        dep2 = kodein.erasedInstance()
+        dep2 = kodein.erasedInstance()
+        dep3 = kodein.erasedInstance()
+        dep4 = kodein.erasedInstance()
+        dep5 = kodein.erasedInstance()
+        dep6 = kodein.erasedInstance()
+        dep7 = kodein.erasedInstance()
+        dep8 = kodein.erasedInstance()
+        dep9 = kodein.erasedInstance()
+        dep10 = kodein.erasedInstance()
+        dep11 = kodein.erasedInstance()
+        dep12 = kodein.erasedInstance()
+        dep13 = kodein.erasedInstance()
+        dep14 = kodein.erasedInstance()
+        dep15 = kodein.erasedInstance()
+        dep16 = kodein.erasedInstance()
+        dep17 = kodein.erasedInstance()
+        dep18 = kodein.erasedInstance()
+        dep19 = kodein.erasedInstance()
+        dep20 = kodein.erasedInstance()
+        dep21 = kodein.erasedInstance()
+        dep22 = kodein.erasedInstance()
+        dep23 = kodein.erasedInstance()
+        dep24 = kodein.erasedInstance()
+        dep25 = kodein.erasedInstance()
+        dep27 = kodein.erasedInstance()
+        dep28 = kodein.erasedInstance()
+        dep29 = kodein.erasedInstance()
     }
 }
 

@@ -33,6 +33,13 @@
 		android:layout_gravity="bottom"
 		/>
 
+	<Button android:id="@+id/kodeinErasedBenchmark"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text="Run Kodein Erased Benchmark"
+		android:layout_gravity="bottom"
+		/>
+
 	<Button android:id="@+id/kinjectBenchmark"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
